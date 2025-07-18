@@ -16,7 +16,7 @@ This package is intended to serve as a unified, flexible, and reusable framework
 - **Reproducibility**: Clear data workflows that support repeatable analysis across experiments and users.
 - **Extensibility**: Modular structure encourages contributions and lab-specific customizations.
 - **Usability**: Designed to be easy to use for lab members with varying levels of coding experience.
-- **IO Independence**: IO-independence: Core functions operate on standard Python/numpy data structures (e.g., arrays, DataFrames) and are intentionally decoupled from specific file formats or loading pipelines—data loading is left up to the user. This does not mean that IO functionality can't be included, but rather, that any core functiopns should not rely on the users specific idiosyncratic ways of data loading. 
+- **IO Independence**: Core functions operate on standard Python/numpy data structures (e.g., arrays, DataFrames) and are intentionally decoupled from specific file formats or loading pipelines—data loading is left up to the user. This does not mean that IO functionality can't be included, but rather, that any core functions should not rely on the users specific idiosyncratic ways of data loading. 
 
 ## Installation
 Right now CalciumKit is not registered. To install to a local env do the following:
