@@ -5,7 +5,7 @@ description = "A toolkit for various calcium imaging and related behavioral anal
 authors = [{ name = "Ryan Senne", email = "rsenne@bu.edu" }]
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 dependencies = [
     "jax",
