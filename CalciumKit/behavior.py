@@ -72,7 +72,7 @@ def wheel_params(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.ndar
     return initial_state, initial_covariance, A, C, Q, R
 
 
-def wheel_kinetics(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
+def wheel_kinematics(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """
     Estimate position, velocity, and acceleration of the wheel using Kalman smoothing.
 

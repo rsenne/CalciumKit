@@ -1,10 +1,9 @@
 import jax.numpy as jnp
-import pytest
 from CalciumKit.behavior import (
     convert_degrees_to_positions,
     create_state_matrix,
     wheel_params,
-    wheel_kinetics,
+    wheel_kinematics,
     RAMIREZ_WHEEL_RADIUS
 )
 
@@ -106,7 +105,7 @@ def test_wheel_params_initialization():
     assert R[0, 0] > 0
 
 
-def test_wheel_kinetics_constant_velocity():
+def test_wheel_kinematics_constant_velocity():
     """Test Kalman smoothing on constant velocity motion."""
     # Simulate constant velocity: position = v*t
     delta_t = 0.01
@@ -117,7 +116,7 @@ def test_wheel_kinetics_constant_velocity():
     # Add small noise
     noisy_positions = true_positions + 0.0001 * jnp.sin(10 * t)
     
-    smoothed_means, smoothed_covs = wheel_kinetics(noisy_positions, delta_t)
+    smoothed_means, smoothed_covs = wheel_kinematics(noisy_positions, delta_t)
     
     # Check output shapes
     assert smoothed_means.shape == (len(noisy_positions), 3)
@@ -132,7 +131,7 @@ def test_wheel_kinetics_constant_velocity():
     assert jnp.allclose(smoothed_velocity, velocity, atol=0.01)
 
 
-def test_wheel_kinetics_constant_acceleration():
+def test_wheel_kinematics_constant_acceleration():
     """Test Kalman smoothing on constant acceleration motion."""
     # Simulate constant acceleration: position = 0.5*a*t^2
     delta_t = 0.01
@@ -143,7 +142,7 @@ def test_wheel_kinetics_constant_acceleration():
     # Add noise
     noisy_positions = true_positions + 0.0001 * jnp.random.normal(0, 1, len(t))
     
-    smoothed_means, smoothed_covs = wheel_kinetics(noisy_positions, delta_t)
+    smoothed_means, smoothed_covs = wheel_kinematics(noisy_positions, delta_t)
     
     # Check shapes
     assert smoothed_means.shape == (len(noisy_positions), 3)
@@ -157,8 +156,8 @@ def test_wheel_kinetics_constant_acceleration():
     assert jnp.allclose(smoothed_accel, accel, atol=0.05)
 
 
-def test_wheel_kinetics_from_degrees():
-    """End-to-end test: degrees to positions to kinetics."""
+def test_wheel_kinematics_from_degrees():
+    """End-to-end test: degrees to positions to kinematics."""
     # Simulate wheel rotating at constant angular velocity
     angular_vel = 10.0  # degrees per step
     degrees = jnp.cumsum(jnp.ones(100) * angular_vel)
@@ -171,7 +170,7 @@ def test_wheel_kinetics_from_degrees():
     
     # Apply Kalman smoothing
     delta_t = 0.01
-    smoothed_means, smoothed_covs = wheel_kinetics(positions, delta_t)
+    smoothed_means, smoothed_covs = wheel_kinematics(positions, delta_t)
     
     # Check that output is valid
     assert smoothed_means.shape == (len(positions), 3)
@@ -183,10 +182,10 @@ def test_wheel_kinetics_from_degrees():
     assert jnp.std(velocities[20:]) < 0.01  # After initial transient
 
 
-def test_wheel_kinetics_warns_on_degrees():
+def test_wheel_kinematics_warns_on_degrees():
     """Test that warning is raised if degrees are passed instead of meters."""
     # Create fake "degree" data (large values)
     fake_degrees = jnp.linspace(0, 100, 50)
     
     with pytest.warns(UserWarning, match="Input may be in degrees"):
-        wheel_kinetics(fake_degrees, delta_t=0.01)
+        wheel_kinematics(fake_degrees, delta_t=0.01)
