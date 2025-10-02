@@ -7,17 +7,23 @@ RAMIREZ_WHEEL_RADIUS = 0.00875  # meters -> 8.75 cm
 
 def convert_degrees_to_positions(degrees: jnp.ndarray, wheel_radius: float = RAMIREZ_WHEEL_RADIUS) -> jnp.ndarray:
     """
-    Convert wheel rotation in degrees [-180, 180] to cumulative linear displacement in meters.
+    Convert wheel rotation in degrees to cumulative linear displacement in meters.
+    Handles wrap-around discontinuities (e.g., -180/180 boundary).
 
     Args:
-        degrees: The degrees of wheel rotation over time.
+        degrees: The degrees of wheel rotation over time. Typically in range (-180, 180.1].
         wheel_radius: The radius of the wheel in meters.
 
     Returns:
         The estimated position in meters over time.
     """
-    positions = (degrees / 360.0) * (2 * jnp.pi * wheel_radius)
-    return jnp.cumsum(jnp.diff(positions))
+    # Unwrap handles discontinuities automatically
+    unwrapped = jnp.unwrap(degrees * jnp.pi / 180.0)
+    
+    # Convert to linear displacement
+    positions = (unwrapped / (2 * jnp.pi)) * (2 * jnp.pi * wheel_radius)
+    
+    return positions
 
 
 def create_state_matrix(delta_t: float) -> jnp.ndarray:
@@ -81,11 +87,14 @@ def wheel_kinetics(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.nd
     if jnp.max(jnp.abs(position_vector)) > 10.0:
         warnings.warn("Input may be in degrees. Did you forget to convert to meters?")
 
+    # Reshape to (T, 1) for Kalman filter
+    y = position_vector.reshape(-1, 1)
+    
     initial_state, initial_covariance, A, C, Q, R = wheel_params(position_vector, delta_t)
 
     # run EM for the covariance parameters
     Q, R, _, _ = kalman.kalman_em(
-        y=position_vector,
+        y=y,
         A=A,
         C=C,
         Q_init=Q,
@@ -95,7 +104,7 @@ def wheel_kinetics(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.nd
     )
 
     smoothed_means, smoothed_covs = kalman.kalman_filter_smoother(
-        y=position_vector,
+        y=y,
         A=A,
         C=C,
         Q=Q,
