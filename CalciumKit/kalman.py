@@ -4,7 +4,7 @@ from jax import lax
 from jax.scipy.linalg import cho_factor, cho_solve
 from typing import Tuple
 
-
+@jax.jit
 def kalman_predict(m: jnp.ndarray, P: jnp.ndarray, A: jnp.ndarray, Q: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """
     Predict the next state and covariance using the state transition model.
@@ -22,7 +22,7 @@ def kalman_predict(m: jnp.ndarray, P: jnp.ndarray, A: jnp.ndarray, Q: jnp.ndarra
     P_pred = A @ P @ A.T + Q
     return m_pred, P_pred
 
-
+@jax.jit
 def kalman_update_joseph(
     m_pred: jnp.ndarray, P_pred: jnp.ndarray, y_t: jnp.ndarray, C: jnp.ndarray, R: jnp.ndarray
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -49,7 +49,7 @@ def kalman_update_joseph(
     P_post = I_KC @ P_pred @ I_KC.T + K @ R @ K.T
     return m_post, P_post
 
-
+@jax.jit
 def kalman_filter_scan(
     y: jnp.ndarray, A: jnp.ndarray, C: jnp.ndarray, Q: jnp.ndarray, R: jnp.ndarray, m0: jnp.ndarray, P0: jnp.ndarray
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -76,9 +76,10 @@ def kalman_filter_scan(
 
     init_carry = (m0, P0)
     (_, _), (means, covs) = lax.scan(step, init_carry, y)
+    
     return means, covs
 
-
+@jax.jit
 def rts_update_joseph(
     m_filt: jnp.ndarray,
     P_filt: jnp.ndarray,
@@ -109,7 +110,7 @@ def rts_update_joseph(
     cross_cov = G @ P_next
     return m_smooth, P_smooth, cross_cov
 
-
+@jax.jit
 def rts_smoother_scan(
     filtered_means: jnp.ndarray, filtered_covs: jnp.ndarray, A: jnp.ndarray, Q: jnp.ndarray
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -125,6 +126,7 @@ def rts_smoother_scan(
     Returns:
         The smoothed state means, covariances, and cross-covariances.
     """
+    
     def step(carry, inputs):
         m_next, P_next = carry
         m_filt, P_filt = inputs
@@ -141,7 +143,7 @@ def rts_smoother_scan(
 
     return smoothed_means, smoothed_covs, cross_covs
 
-
+@jax.jit
 def em_update_Q_R(
     y: jnp.ndarray,
     smoothed_means: jnp.ndarray,
@@ -165,6 +167,7 @@ def em_update_Q_R(
         Updated estimates of Q and R.
     """
     T = y.shape[0]
+    
     E_xt_xtT = jnp.einsum("ti,tj->tij", smoothed_means, smoothed_means) + smoothed_covs
     E_xtm1_xtT = cross_covs + jnp.einsum("ti,tj->tij", smoothed_means[1:], smoothed_means[:-1])
 
@@ -189,7 +192,6 @@ def em_update_Q_R(
     R_new = R_sum / T
 
     return Q_new, R_new
-
 
 def kalman_em(
     y: jnp.ndarray,

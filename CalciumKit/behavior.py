@@ -56,7 +56,7 @@ def wheel_params(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.ndar
     initial_acceleration = (position_vector[2] - 2 * position_vector[1] + position_vector[0]) / (delta_t ** 2)
 
     initial_state = jnp.array([initial_position, initial_velocity, initial_acceleration])
-    initial_covariance = jnp.diag(jnp.array([1e-4, 1e-2, 1e-1]))
+    initial_covariance = jnp.diag(jnp.array([1e-4, 1e-1, 1e-1]))
 
     A = create_state_matrix(delta_t)
 
