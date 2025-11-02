@@ -1,5 +1,5 @@
-import jax
 import jax.numpy as jnp
+import jax
 from CalciumKit.behavior import (
     convert_degrees_to_positions,
     create_state_matrix,
@@ -142,8 +142,9 @@ def test_wheel_kinematics_constant_acceleration():
     true_positions = 0.5 * accel * t**2
     
     # Add noise
-    noisy_positions = true_positions + 0.0001 * jnp.random.normal(0, 1, len(t))
-    
+    key = jax.random.PRNGKey(0)
+    noisy_positions = true_positions + 0.0001 * jax.random.normal(key, shape=t.shape)
+        
     smoothed_means, smoothed_covs = wheel_kinematics(noisy_positions, delta_t)
     
     # Check shapes

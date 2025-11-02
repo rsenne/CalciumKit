@@ -111,7 +111,7 @@ def rts_update_joseph(
     return m_smooth, P_smooth, cross_cov
 
 @jax.jit
-def rts_smoother_scan(
+def _rts_smoother_scan_full(
     filtered_means: jnp.ndarray, filtered_covs: jnp.ndarray, A: jnp.ndarray, Q: jnp.ndarray
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
@@ -142,6 +142,13 @@ def rts_smoother_scan(
     cross_covs = rev_cross[::-1]
 
     return smoothed_means, smoothed_covs, cross_covs
+
+@jax.jit
+def rts_smoother_scan(
+    filtered_means: jnp.ndarray, filtered_covs: jnp.ndarray, A: jnp.ndarray, Q: jnp.ndarray
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    smoothed_means, smoothed_covs, _ = _rts_smoother_scan_full(filtered_means, filtered_covs, A, Q)
+    return smoothed_means, smoothed_covs
 
 @jax.jit
 def em_update_Q_R(
@@ -182,6 +189,8 @@ def em_update_Q_R(
 
     Q_sum = lax.fori_loop(1, T, q_body, jnp.zeros_like(E_xt_xtT[0]))
     Q_new = Q_sum / (T - 1)
+    Q_new = (Q_new + Q_new.T) / 2  # ensure symmetry
+    Q_new += 1e-10 * jnp.eye(Q_new.shape[0])  # ensure positive definiteness
 
     def r_body(t, R_sum):
         err = y[t] - C @ smoothed_means[t]
@@ -190,6 +199,9 @@ def em_update_Q_R(
 
     R_sum = lax.fori_loop(0, T, r_body, jnp.zeros((C.shape[0], C.shape[0])))
     R_new = R_sum / T
+    R_new = (R_new + R_new.T) / 2  # ensure symmetry
+    R_new += 1e-10 * jnp.eye(R_new.shape[0])  # ensure positive definiteness
+
 
     return Q_new, R_new
 
@@ -228,7 +240,7 @@ def kalman_em(
 
     for i in range(num_iters):
         filtered_means, filtered_covs = kalman_filter_scan(y, A, C, Q, R, m0, P0)
-        smoothed_means, smoothed_covs, cross_covs = rts_smoother_scan(filtered_means, filtered_covs, A, Q)
+        smoothed_means, smoothed_covs, cross_covs = _rts_smoother_scan_full(filtered_means, filtered_covs, A, Q)
         Q, R = em_update_Q_R(y, smoothed_means, smoothed_covs, cross_covs, A, C)
 
         ll_proxy = -jnp.sum(jnp.square(y - smoothed_means @ C.T))
@@ -268,5 +280,5 @@ def kalman_filter_smoother(
         Smoothed means and covariances for the entire sequence.
     """
     filtered_means, filtered_covs = kalman_filter_scan(y, A, C, Q, R, m0, P0)
-    smoothed_means, smoothed_covs, _ = rts_smoother_scan(filtered_means, filtered_covs, A, Q)
+    smoothed_means, smoothed_covs, _ = _rts_smoother_scan_full(filtered_means, filtered_covs, A, Q)
     return smoothed_means, smoothed_covs

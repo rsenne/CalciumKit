@@ -3,13 +3,7 @@ from typing import Tuple
 import jax.numpy as jnp
 import CalciumKit.kalman as kalman
 
-RAMIREZ_WHEEL_RADIUS = 0.00875  # meters -> 8.75 cm
-
-def _unwrap_radians(theta):
-    d = jnp.diff(theta)
-    d = (d + jnp.pi) % (2 * jnp.pi) - jnp.pi
-    d = d.at[(d == -jnp.pi)].set(jnp.pi)  # make boundary jump positive
-    return theta[0] + jnp.cumsum(jnp.concatenate([jnp.array([0.0], theta.dtype), d]))
+RAMIREZ_WHEEL_RADIUS = 0.000875  # meters -> 8.75 cm
 
 def convert_degrees_to_positions(degrees: jnp.ndarray, wheel_radius: float = RAMIREZ_WHEEL_RADIUS) -> jnp.ndarray:
     """
@@ -23,9 +17,13 @@ def convert_degrees_to_positions(degrees: jnp.ndarray, wheel_radius: float = RAM
     Returns:
         The estimated position in meters over time.
     """
-    theta = jnp.deg2rad(jnp.asarray(degrees, dtype=jnp.float32))
-    theta_u = _unwrap_radians(theta)   # monotonize
-    return wheel_radius * theta_u      # s = r*θ
+    # Unwrap handles discontinuities automatically
+    unwrapped = jnp.unwrap(degrees * jnp.pi / 180.0)
+    
+    # Convert to linear displacement
+    positions = (unwrapped / (2 * jnp.pi)) * (2 * jnp.pi * wheel_radius)
+    
+    return positions
 
 
 def create_state_matrix(delta_t: float) -> jnp.ndarray:
