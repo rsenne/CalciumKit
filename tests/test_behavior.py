@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from CalciumKit.behavior import (
     convert_degrees_to_positions,
@@ -114,7 +115,8 @@ def test_wheel_kinematics_constant_velocity():
     true_positions = velocity * t
     
     # Add small noise
-    noisy_positions = true_positions + 0.0001 * jnp.sin(10 * t)
+    key = jax.random.PRNGKey(0)
+    noisy_positions = true_positions + 0.0001 * jax.random.normal(key, shape=t.shape)
     
     smoothed_means, smoothed_covs = wheel_kinematics(noisy_positions, delta_t)
     

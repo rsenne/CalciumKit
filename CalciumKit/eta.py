@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 
 @jax.jit
-def _simple_eta_core(signal, t, lags, events, return_traces: bool):
+def _simple_eta_core(signal, t, lags, events):
     """
     signal: (T,)
     t:      (T,)
@@ -19,7 +19,7 @@ def _simple_eta_core(signal, t, lags, events, return_traces: bool):
     traces = jax.vmap(interp_at)(sample_times)              # (E, W)
 
     avg = jnp.nanmean(traces, axis=0)                       # (W,)
-    return (avg, lags, traces) if return_traces else (avg, lags)
+    return avg, traces
 
 def simple_eta(signal, t, window, events, *, dt=None, num=None, return_traces=False):
     """
@@ -61,9 +61,6 @@ def simple_eta(signal, t, window, events, *, dt=None, num=None, return_traces=Fa
         # ensure inclusive of endpoints
         num = int(jnp.floor((t1 - t0) / dt)) + 1
         num = max(num, 1)
-    lags = jnp.linspace(t0, t1, num)                        # (W,)
-    return _simple_eta_core(jnp.asarray(signal),
-                            jnp.asarray(t),
-                            lags,
-                            jnp.asarray(events),
-                            bool(return_traces))
+    lags = jnp.linspace(t0, t1, num)
+    avg, traces = _simple_eta_core(jnp.asarray(signal), jnp.asarray(t), lags, jnp.asarray(events))
+    return (avg, lags, traces) if return_traces else (avg, lags)
