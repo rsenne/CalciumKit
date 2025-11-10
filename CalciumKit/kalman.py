@@ -40,6 +40,7 @@ def kalman_update_joseph(
         The updated state mean and covariance.
     """
     S = C @ P_pred @ C.T + R
+    S = 0.5 * (S + S.T) + 1e-9 * jnp.eye(S.shape[0])
     chol_S = cho_factor(S, lower=True)
     K = cho_solve(chol_S, C @ P_pred).T
     innovation = y_t - C @ m_pred
@@ -103,6 +104,7 @@ def rts_update_joseph(
         The smoothed mean and covariance at time t, and cross covariance E[x_t x_{t+1}^T].
     """
     P_pred = A @ P_filt @ A.T + Q
+    P_pred = 0.5 * (P_pred + P_pred.T) + 1e-9 * jnp.eye(P_pred.shape[0])
     chol_P_pred = cho_factor(P_pred, lower=True)
     G = cho_solve(chol_P_pred, A @ P_filt).T
     m_smooth = m_filt + G @ (m_next - A @ m_filt)

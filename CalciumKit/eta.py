@@ -12,12 +12,18 @@ def _simple_eta_core(signal, t, lags, events):
     # absolute sample times per event
     sample_times = events[:, None] + lags[None, :]          # (E, W)
 
-    # vectorized 1D linear interpolation with NaN fill at edges
+    # Bounds
+    tmin = t[0]
+    tmax = t[-1]
+
+    # Vectorized 1D linear interpolation with *clipping* + mask
     def interp_at(times_1d):
-        return jnp.interp(times_1d, t, signal, left=jnp.nan, right=jnp.nan)
+        within = (times_1d >= tmin) & (times_1d <= tmax)
+        tq = jnp.clip(times_1d, tmin, tmax)
+        vals = jnp.interp(tq, t, signal)                   # no left/right NaNs here
+        return jnp.where(within, vals, jnp.nan)
 
     traces = jax.vmap(interp_at)(sample_times)              # (E, W)
-
     avg = jnp.nanmean(traces, axis=0)                       # (W,)
     return avg, traces
 

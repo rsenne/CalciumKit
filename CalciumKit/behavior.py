@@ -3,26 +3,24 @@ from typing import Tuple
 import jax.numpy as jnp
 import CalciumKit.kalman as kalman
 
-RAMIREZ_WHEEL_RADIUS = 0.000875  # meters -> 8.75 cm
+RAMIREZ_WHEEL_RADIUS = 0.0875  # meters -> 8.75 cm
 
 def convert_degrees_to_positions(degrees: jnp.ndarray, wheel_radius: float = RAMIREZ_WHEEL_RADIUS) -> jnp.ndarray:
     """
     Convert wheel rotation in degrees to cumulative linear displacement in meters.
-    Handles wrap-around discontinuities (e.g., -180/180 boundary).
-
-    Args:
-        degrees: The degrees of wheel rotation over time. Typically in range (-180, 180.1].
-        wheel_radius: The radius of the wheel in meters.
-
-    Returns:
-        The estimated position in meters over time.
+    Handles wrap-around across -180/180 while preserving true ±360° revolutions.
     """
-    # Unwrap handles discontinuities automatically
-    unwrapped = jnp.unwrap(degrees * jnp.pi / 180.0)
-    
-    # Convert to linear displacement
-    positions = (unwrapped / (2 * jnp.pi)) * (2 * jnp.pi * wheel_radius)
-    
+    deg = jnp.asarray(degrees, dtype=jnp.float32)
+    diffs = jnp.diff(deg, prepend=deg[0])
+
+    tol = 1e-3  # degrees; treat values within this of 360 as "exact revolution"
+    # Fix negative wrap (e.g., 180.1 -> -179.9 gives -360 -> +0)
+    step = jnp.where(diffs < -180.0, diffs + 360.0, diffs)
+    # Fix positive wrap unless it's a true +360° revolution
+    step = jnp.where((step > 180.0) & (jnp.abs(step - 360.0) > tol), step - 360.0, step)
+
+    unwrapped_deg = jnp.cumsum(step)
+    positions = (unwrapped_deg / 360.0) * (2.0 * jnp.pi * wheel_radius)
     return positions
 
 
@@ -60,14 +58,15 @@ def wheel_params(position_vector: jnp.ndarray, delta_t: float) -> Tuple[jnp.ndar
 
     A = create_state_matrix(delta_t)
 
+    dt2, dt3, dt4, dt5 = delta_t**2, delta_t**3, delta_t**4, delta_t**5
     Q = 0.04 * jnp.array([
-        [0.25 * delta_t**4, 0.5 * delta_t**3, 0.5 * delta_t**2],
-        [0.5 * delta_t**3,     delta_t**2,       delta_t],
-        [0.5 * delta_t**2,     delta_t,          1.0]
+        [dt5/20.0, dt4/8.0, dt3/6.0],
+        [dt4/8.0,  dt3/3.0, dt2/2.0],
+        [dt3/6.0,  dt2/2.0, delta_t]
     ])
 
     C = jnp.array([[1.0, 0.0, 0.0]])  # Observe only position
-    R = jnp.array([[1e-8]])          # Low measurement noise
+    R = jnp.array([[1e-6]])          # Low measurement noise
 
     return initial_state, initial_covariance, A, C, Q, R
 

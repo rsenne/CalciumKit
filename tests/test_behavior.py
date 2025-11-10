@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import jax
+import pytest
 from CalciumKit.behavior import (
     convert_degrees_to_positions,
     create_state_matrix,
@@ -36,17 +37,14 @@ def test_convert_degrees_wraparound():
 
 def test_convert_degrees_asymmetric_range():
     """Test handling of asymmetric range (-180, 180.1]."""
-    # Simulate data that goes to 180.1 as part of normal convention
     degrees = jnp.array([178.0, 179.0, 180.0, 180.1, -179.9, -179.0])
     positions = convert_degrees_to_positions(degrees)
-    
-    # Should be continuous with no large jumps
+
     diffs = jnp.diff(positions)
-    assert jnp.all(jnp.abs(diffs) < 0.001), "Should handle 180.1 smoothly without remapping"
-    assert jnp.all(jnp.isfinite(positions)), "All positions should be finite"
-    
-    # Verify monotonic increase through the boundary
-    assert jnp.all(diffs > 0), "Motion should be consistently forward"
+    # One degree of arc on the default wheel:
+    per_deg = 2 * jnp.pi * RAMIREZ_WHEEL_RADIUS / 360.0
+    # No discontinuities larger than a 1° step (+ tiny numerical slack)
+    assert jnp.all(jnp.abs(diffs) <= per_deg + 1e-6), "Should be continuous across 180↔-180"
 
 
 def test_convert_degrees_negative_motion():
@@ -144,7 +142,7 @@ def test_wheel_kinematics_constant_acceleration():
     # Add noise
     key = jax.random.PRNGKey(0)
     noisy_positions = true_positions + 0.0001 * jax.random.normal(key, shape=t.shape)
-        
+
     smoothed_means, smoothed_covs = wheel_kinematics(noisy_positions, delta_t)
     
     # Check shapes

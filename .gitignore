@@ -4,3 +4,4 @@ __pycache__/
 testing_file.py
 CalciumKit.egg-info/
 testing_notebook.ipynb
+.pytest_cache/
